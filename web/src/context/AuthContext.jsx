@@ -9,37 +9,16 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Hard fallback: if nothing resolves within 5s, stop loading
-    const fallback = setTimeout(() => setLoading(false), 5000)
-
-    // getSession() reads localStorage directly (no lock) — fast on reload
+    // Read session from localStorage directly — instant, no Web Lock involved
     supabase.auth.getSession()
       .then(({ data: { session } }) => {
-        clearTimeout(fallback)
-        setUser(session?.user ?? null)
-        if (session?.user) fetchProfile(session.user.id)
-        else setLoading(false)
-      })
-      .catch(() => {
-        clearTimeout(fallback)
+        if (session?.user) {
+          setUser(session.user)
+          return fetchProfile(session.user.id)
+        }
         setLoading(false)
       })
-
-    // onAuthStateChange handles sign in / sign out / token refresh AFTER initial load
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === 'INITIAL_SESSION') return  // already handled by getSession() above
-        setUser(session?.user ?? null)
-        if (session?.user) {
-          await fetchProfile(session.user.id)
-        } else {
-          setProfile(null)
-          setLoading(false)
-        }
-      }
-    )
-
-    return () => subscription.unsubscribe()
+      .catch(() => setLoading(false))
   }, [])
 
   async function fetchProfile(userId) {
@@ -61,7 +40,6 @@ export function AuthProvider({ children }) {
     const { data, error } = await supabase.auth.signUp({ email, password })
     if (error) throw error
 
-    // Insert profile row immediately after account creation
     if (data.user) {
       const { error: profileErr } = await supabase.from('profiles').insert({
         id: data.user.id,
@@ -71,8 +49,7 @@ export function AuthProvider({ children }) {
         location,
       })
       if (profileErr) throw profileErr
-      // Re-fetch profile — onAuthStateChange fires before the INSERT above completes,
-      // so we need to explicitly load it after insertion
+      setUser(data.user)
       await fetchProfile(data.user.id)
     }
     return data
@@ -81,11 +58,17 @@ export function AuthProvider({ children }) {
   async function signIn({ email, password }) {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) throw error
+    if (data.user) {
+      setUser(data.user)
+      await fetchProfile(data.user.id)
+    }
     return data
   }
 
   async function signOut() {
     await supabase.auth.signOut()
+    setUser(null)
+    setProfile(null)
   }
 
   return (
