@@ -1,13 +1,18 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 export default function Login() {
-  const { signIn } = useAuth()
+  const { signIn, user } = useAuth()
   const navigate = useNavigate()
   const [form, setForm] = useState({ email: '', password: '' })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  // Navigate only after auth state is confirmed in context
+  useEffect(() => {
+    if (user) navigate('/dashboard', { replace: true })
+  }, [user, navigate])
 
   const set = (field) => (e) => setForm({ ...form, [field]: e.target.value })
 
@@ -17,7 +22,7 @@ export default function Login() {
     setError('')
     try {
       await signIn(form)
-      navigate('/dashboard')
+      // navigation handled by useEffect above
     } catch (err) {
       setError(err.message)
     } finally {

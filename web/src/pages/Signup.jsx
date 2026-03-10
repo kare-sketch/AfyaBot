@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
@@ -12,13 +12,18 @@ const KENYAN_COUNTIES = [
 ]
 
 export default function Signup() {
-  const { signUp } = useAuth()
+  const { signUp, user } = useAuth()
   const navigate = useNavigate()
   const [form, setForm] = useState({
     full_name: '', email: '', password: '', age: '', gender: '', location: '',
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  // Navigate only after auth state is confirmed in context
+  useEffect(() => {
+    if (user) navigate('/dashboard', { replace: true })
+  }, [user, navigate])
 
   const set = (field) => (e) => setForm({ ...form, [field]: e.target.value })
 
@@ -32,7 +37,7 @@ export default function Signup() {
     setError('')
     try {
       await signUp(form)
-      navigate('/dashboard')
+      // navigation handled by useEffect above
     } catch (err) {
       setError(err.message)
     } finally {

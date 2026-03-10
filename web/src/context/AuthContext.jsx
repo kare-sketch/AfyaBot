@@ -9,14 +9,7 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
-      if (session?.user) fetchProfile(session.user.id)
-      else setLoading(false)
-    })
-
-    // Listen for auth changes (login, logout, token refresh)
+    // onAuthStateChange fires immediately with INITIAL_SESSION — no need for getSession()
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         setUser(session?.user ?? null)
@@ -33,13 +26,18 @@ export function AuthProvider({ children }) {
   }, [])
 
   async function fetchProfile(userId) {
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single()
-    setProfile(data ?? null)
-    setLoading(false)
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single()
+      setProfile(data ?? null)
+    } catch {
+      setProfile(null)
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function signUp({ email, password, full_name, age, gender, location }) {
@@ -56,6 +54,9 @@ export function AuthProvider({ children }) {
         location,
       })
       if (profileErr) throw profileErr
+      // Re-fetch profile — onAuthStateChange fires before the INSERT above completes,
+      // so we need to explicitly load it after insertion
+      await fetchProfile(data.user.id)
     }
     return data
   }
