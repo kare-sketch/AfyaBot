@@ -9,14 +9,21 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // Hard fallback: if nothing resolves within 5s, stop loading
+    const fallback = setTimeout(() => setLoading(false), 5000)
+
     // getSession() reads localStorage directly (no lock) — fast on reload
     supabase.auth.getSession()
       .then(({ data: { session } }) => {
+        clearTimeout(fallback)
         setUser(session?.user ?? null)
         if (session?.user) fetchProfile(session.user.id)
         else setLoading(false)
       })
-      .catch(() => setLoading(false))
+      .catch(() => {
+        clearTimeout(fallback)
+        setLoading(false)
+      })
 
     // onAuthStateChange handles sign in / sign out / token refresh AFTER initial load
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
