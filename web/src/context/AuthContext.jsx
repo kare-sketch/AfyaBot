@@ -9,9 +9,17 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // onAuthStateChange fires immediately with INITIAL_SESSION — no need for getSession()
+    // getSession() reads localStorage directly (no lock) — fast on reload
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null)
+      if (session?.user) fetchProfile(session.user.id)
+      else setLoading(false)
+    })
+
+    // onAuthStateChange handles sign in / sign out / token refresh AFTER initial load
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      async (event, session) => {
+        if (event === 'INITIAL_SESSION') return  // already handled by getSession() above
         setUser(session?.user ?? null)
         if (session?.user) {
           await fetchProfile(session.user.id)

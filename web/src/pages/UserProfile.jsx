@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 
@@ -17,7 +17,6 @@ const inputClass =
 
 export default function UserProfile() {
   const { user, profile, signOut, fetchProfile } = useAuth()
-  const navigate = useNavigate()
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState({
     full_name: '', age: '', gender: '', location: '',
@@ -77,7 +76,7 @@ export default function UserProfile() {
 
   const handleLogout = async () => {
     await signOut()
-    navigate('/')
+    // ProtectedRoute redirects to /login automatically when user becomes null
   }
 
   const initials = profile?.full_name
